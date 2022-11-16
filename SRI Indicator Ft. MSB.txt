@@ -1,0 +1,950 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © KingMSB
+
+
+//SPECIAL THANKS FOR BASE CODE
+//          - SRI CYPTO YOUTUBE CHANNEL
+//          - LUX ALGO 
+//          -
+
+//@version=5
+indicator('SRI Indicator ft. MSB' ,"SRI ft. MSB"
+ , overlay=true
+ , max_lines_count=500
+ , max_labels_count=500)
+//---------------------------------------------------------------------------------//
+
+//Tooltips
+
+string TRAMA_TOOLTIP ="Trend Regularity Adaptive Moving Average(TRAMA)\n\nThe trend regularity adaptive moving average (TRAMA) can be used like most moving averages, with the advantage of being smoother during ranging markets.\n\nSpecial thanks: Lux Algo"
+string NWE_TOOLTIP='Based on Nadaraya-Watson Estimator and kernal smoothing\n\nSpecial thanks: Lux Algo'
+string BB_STRATEGY_TOOLTIP='BOLINGER BAND STRATEGY\n\nNORMAL: Show only CONFIRMED Signals \nAGGRESSIVE: Can generate FALSE Signals\n\nWarning !!! DO NOT USE THIS STRATEGY STANDALONE (USE WITH OTHER CONFIRMATIONS)'
+string SMA20_STRATEGY_TOOLTIP='SMA20 STRATEGY\n\nNORMAL: Show only CONFIRMED Signals \nAGGRESSIVE: Can generate FALSE Signals\n\nWarning !!! DO NOT USE THIS STRATEGY STANDALONE (USE WITH OTHER CONFIRMATIONS)'
+string TRAMA_LENGTH_TOOLTIP ='Period: With HIGHER values returning smoother results.\n Suitable for RANGING Markets'
+string RSI_COLORS_TOOLTIP='RSI COLORS\n\nRSI>85 : White\nRSI>80 : Dark Orange\nRSI>75 : Light Orange\nRSI>30 : Yellow\nRSI>25 : Sky Blue\nRSI>20 : Light Blue\nRSI>15 : Medium Blue\nRSI>10 : Dark Blue\nRSI<10 : White'
+
+//colors
+
+sblue0 = color.new(color.blue, 0)
+spurple0 = color.new(color.purple, 0)
+sgreen0 = color.new(color.green, 0)
+syellow0 = color.new(color.yellow, 0)
+sred0 = color.new(color.red, 0)
+slime0= color.new(color.lime,0)
+sorange0 = color.new(color.orange, 0)
+sblack0 = color.new(color.black, 0)
+swhite1 = color.new(color.white, 100)
+sdblue0 = color.new(#001c68, 0)
+
+
+src = input(close, title='SOURCE')
+
+//INPUT 'BASIC FUNCTIONS' GROUP
+
+SHow_EMAs = input(false, 'EMAs ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_01')
+
+SHow_SMAs = input(false, 'SMAs ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_01')
+
+SHOW_TRAMA= input(false,'TRAMA'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_01'
+  , tooltip=TRAMA_TOOLTIP)
+
+SHOW_BOLINGER_BANDS = input(false,'BOLINGER BANDS ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_02')
+
+SHOW_SUPERICHI = input(false,'SUPERICHI'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_02')
+
+SHOW_SUPER_TREND = input(false,'SUPER TREND ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏ ‏  ‏' 
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_03')
+
+SHOW_RSI_BAR_COLORS = input(false, 'RSI BAR COLORS'
+  , group='--- BASIC FUNCTIONS ---', inline='basic_line_03'
+  ,tooltip= RSI_COLORS_TOOLTIP)
+
+SHOW_NWE = input(false,'NADARAYA WATSON ENVELOPE'
+  , group='--- BASIC FUNCTIONS ---'
+  , tooltip=NWE_TOOLTIP)
+
+SHOW_PIVOTS =input(false,'PIVOT POINTS'
+  , group='--- BASIC FUNCTIONS ---')
+
+SHOW_ATR =input(false,'ATR'
+  , group='--- BASIC FUNCTIONS ---')
+
+SHOW_CPR= input(false,"CPR LEVELS"
+  , group='--- BASIC FUNCTIONS ---')
+
+SHOW_CME = input(false, "CME GAPS"
+  , group='--- BASIC FUNCTIONS ---')
+
+//INPUT '---STRATEGY - BUY/SELL SETUPS --- GROUP
+
+SHOW_BB_STRATEGY= input.string('OFF','BB STRATEGY'
+  , options= ['OFF','NORMAL','AGGRESSIVE']
+  , tooltip=BB_STRATEGY_TOOLTIP
+  , group='--- STRATEGY - BUY/SELL SETUPS ---')
+
+SHOW_SMA20_STRATEGY= input.string('OFF','SMA20 STRATEGY'
+  , options= ['OFF','NORMAL','AGGRESSIVE']
+  , tooltip=SMA20_STRATEGY_TOOLTIP
+  , group='--- STRATEGY - BUY/SELL SETUPS ---')
+
+//MULTI-TIMEFRAME EMA
+
+SHOW_LABEL_EMA01= input(false,"EMA 01 ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏"
+  , group='--- EMA SETTINGS ---', inline='labelema1')
+
+SHOW_LABEL_EMA02= input(false,"EMA 02 ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏"
+  , group='--- EMA SETTINGS ---', inline='labelema1')
+
+SHOW_LABEL_EMA03= input(true,"EMA 03"
+  , group='--- EMA SETTINGS ---', inline='labelema1')
+
+EMA_01_TF = input.timeframe(title='EMA 01', defval='', group='--- EMA SETTINGS ---', inline='ema1')
+EMA_01_PERIOD = input.int(55, title='PERIOD', group='--- EMA SETTINGS ---', inline='ema1')
+EMA_02_TF = input.timeframe(title='EMA 02', defval='', group='--- EMA SETTINGS ---', inline='ema2')
+EMA_02_PERIOD = input.int(100, title='PERIOD', group='--- EMA SETTINGS ---', inline='ema2')
+EMA_03_TF = input.timeframe(title='EMA 03', defval='', group='--- EMA SETTINGS ---', inline='ema3')
+EMA_03_PERIOD = input.int(200, title='PERIOD', group='--- EMA SETTINGS ---', inline='ema3')
+
+
+EMA_PERIOD_08 = request.security(syminfo.tickerid, '', ta.ema(src, 8))
+EMA_PERIOD_13 = request.security(syminfo.tickerid, '', ta.ema(src, 13))
+EMA_PERIOD_21 = request.security(syminfo.tickerid, '', ta.ema(src, 21))
+EMA_PERIOD_34 = request.security(syminfo.tickerid, '', ta.ema(src, 34))
+EMA_01_INPUT = request.security(syminfo.tickerid, EMA_01_TF, ta.ema(src, EMA_01_PERIOD))
+EMA_02_INPUT = request.security(syminfo.tickerid, EMA_02_TF, ta.ema(src, EMA_02_PERIOD))
+EMA_03_INPUT = request.security(syminfo.tickerid, EMA_03_TF, ta.ema(src, EMA_03_PERIOD))
+
+//EMA COLORS
+
+ncolor200 = EMA_03_INPUT >= EMA_03_INPUT[2] ? slime0 : EMA_03_INPUT < EMA_03_INPUT[2] ? sred0 : na
+ncolor100 = EMA_02_INPUT >= EMA_02_INPUT[2] ? slime0 : EMA_02_INPUT < EMA_02_INPUT[2] ? sred0 : na
+ncolor55 = EMA_01_INPUT >= EMA_01_INPUT[2] ? slime0 : EMA_01_INPUT < EMA_01_INPUT[2] ? sred0 : na
+
+plot(SHow_EMAs and SHOW_LABEL_EMA01 ? EMA_01_INPUT : na, title='EMA 01 (Default: 55)', color=ncolor55, linewidth=1, offset=0)
+plot(SHow_EMAs and SHOW_LABEL_EMA02 ? EMA_02_INPUT : na, title='EMA 02 (Default: 100)', color=ncolor100, linewidth=2, offset=0)
+plot(SHow_EMAs and SHOW_LABEL_EMA03 ? EMA_03_INPUT : na, title='EMA 03 (Default: 200)', color=ncolor200, linewidth=3, offset=0)
+
+if SHOW_LABEL_EMA01 and SHow_EMAs
+    var labelema01 = label.new(x = bar_index, y = EMA_01_INPUT, style=label.style_none, textcolor = color.lime, text = "EMA01")
+    label.set_xy(labelema01, x = bar_index+2, y = EMA_01_INPUT)
+    label.set_text(labelema01, text = "EMA" + str.tostring(EMA_01_PERIOD))
+
+if SHOW_LABEL_EMA02 and SHow_EMAs
+    var labelema02 = label.new(x = bar_index, y = EMA_02_INPUT, style=label.style_none, textcolor = color.lime, text = "EMA02")
+    label.set_xy(labelema02, x = bar_index+2, y = EMA_02_INPUT)
+    label.set_text(labelema02, text = "EMA" + str.tostring(EMA_02_PERIOD))
+
+if SHOW_LABEL_EMA03 and SHow_EMAs
+    var labelema03 = label.new(x = bar_index, y = EMA_03_INPUT, style=label.style_none, textcolor =color.lime, text = "EMA03")
+    label.set_xy(labelema03, x = bar_index+3, y = EMA_03_INPUT)
+    label.set_text(labelema03, text = "EMA" + str.tostring(EMA_03_PERIOD))
+
+
+//MULTI-TIMEFRAME SMA
+
+SHOW_LABEL_SMA01= input(false,"SMA 01 ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏"
+  , group='--- SMA SETTINGS ---', inline='labelsma1')
+
+SHOW_LABEL_SMA02= input(false,"SMA 02 ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏"
+  , group='--- SMA SETTINGS ---', inline='labelsma1')
+
+SHOW_LABEL_SMA03= input(false,"SMA 03"
+  , group='--- SMA SETTINGS ---', inline='labelsma1')
+
+SMA_01_TF = input.timeframe(title='SMA 01', defval='', group='--- SMA SETTINGS ---', inline='sma1')
+SMA_01_PERIOD = input.int(50, title='PERIOD', group='--- SMA SETTINGS ---', inline='sma1')
+SMA_02_TF = input.timeframe(title='SMA 02', defval='', group='--- SMA SETTINGS ---', inline='sma2')
+SMA_02_PERIOD = input.int(100, title='PERIOD', group='--- SMA SETTINGS ---', inline='sma2')
+SMA_03_TF = input.timeframe(title='SMA 03', defval='', group='--- SMA SETTINGS ---', inline='sma3')
+SMA_03_PERIOD = input.int(200, title='PERIOD', group='--- SMA SETTINGS ---', inline='sma3')
+
+
+
+sssma1 = request.security(syminfo.tickerid, '', ta.sma(src, 10))
+sssma2 = request.security(syminfo.tickerid, '', ta.sma(src, 20))
+sssma3 = request.security(syminfo.tickerid, '', ta.sma(src, 30))
+sssma4 = request.security(syminfo.tickerid, '', ta.sma(src, 50))
+sssma5 = request.security(syminfo.tickerid, '', ta.sma(src, 100))
+sssma6 = request.security(syminfo.tickerid, '', ta.sma(src, 200))
+
+
+SMA_01_INPUT = request.security(syminfo.tickerid, SMA_01_TF, ta.sma(src, SMA_01_PERIOD))
+SMA_02_INPUT = request.security(syminfo.tickerid, SMA_02_TF, ta.sma(src, SMA_02_PERIOD))
+SMA_03_INPUT = request.security(syminfo.tickerid, SMA_03_TF, ta.sma(src, SMA_03_PERIOD))
+
+//new sma colors
+
+ncolor200s = SMA_03_INPUT >= SMA_03_INPUT[2] ? color.lime : SMA_03_INPUT < SMA_03_INPUT[2] ? color.red : na
+ncolor100s = SMA_02_INPUT >= SMA_02_INPUT[2] ? color.lime : SMA_02_INPUT < SMA_02_INPUT[2] ? color.red : na
+ncolor50s = SMA_01_INPUT >= SMA_01_INPUT[2] ? color.lime : SMA_01_INPUT < SMA_01_INPUT[2] ? color.red : na
+
+plot(SHow_SMAs and SHOW_LABEL_SMA01 ? SMA_01_INPUT : na, title='SMA 01 (Default: 50)', color=ncolor50s, linewidth=1, offset=0)
+plot(SHow_SMAs and SHOW_LABEL_SMA02 ? SMA_02_INPUT : na, title='SMA 02 (Default: 100)', color=ncolor100s, linewidth=2, offset=0)
+plot(SHow_SMAs and SHOW_LABEL_SMA03 ? SMA_03_INPUT : na, title='SMA 03 (Default: 200)', color=ncolor200s, linewidth=3, offset=0)
+
+
+
+if SHOW_LABEL_SMA01 and SHow_SMAs
+    var labelsma01 = label.new(x = bar_index, y = SMA_01_INPUT, style=label.style_none, textcolor = color.red, text = "SMA01")
+    label.set_xy(labelsma01, x = bar_index+2, y = SMA_01_INPUT)
+    label.set_text(labelsma01, text = "SMA" + str.tostring(SMA_01_PERIOD))
+
+if SHOW_LABEL_SMA02 and SHow_SMAs
+    var labelsma02 = label.new(x = bar_index, y = SMA_02_INPUT, style=label.style_none, textcolor = color.red, text = "SMA02")
+    label.set_xy(labelsma02, x = bar_index+2, y = SMA_02_INPUT)
+    label.set_text(labelsma02, text = "SMA" + str.tostring(SMA_02_PERIOD))
+
+if SHOW_LABEL_SMA03 and SHow_SMAs
+    var labelsma03 = label.new(x = bar_index, y = SMA_03_INPUT, style=label.style_none, textcolor = color.red, text = "SMA03")
+    label.set_xy(labelsma03, x = bar_index+3, y = SMA_03_INPUT)
+    label.set_text(labelsma03, text = "SMA" + str.tostring(SMA_03_PERIOD))
+
+
+//SMA20 Strategy 
+
+bool SHOW_SMA_SIGNALS = na
+bool SHOW_AGG_SMA_SIGNALS = na
+
+if SHOW_SMA20_STRATEGY =='NORMAL'
+    SHOW_SMA_SIGNALS := true
+    SHOW_AGG_SMA_SIGNALS := false
+else if SHOW_BB_STRATEGY == 'AGGRESSIVE'
+    SHOW_AGG_SMA_SIGNALS := true
+    SHOW_SMA_SIGNALS:= false
+
+//plot SMA SIGNALS
+smalc1 = close > open and close > sssma2 and close[1] > open[1] and close[1] > sssma2 and close[2] < sssma2 and sssma2 > SMA_01_INPUT and sssma2 >= sssma2[2] and sssma1 >= sssma1[2] and sssma5 >= sssma5[1] and sssma6 >= sssma6[1]
+smasc1 = close < open and close < sssma2 and close[1] < open[1] and close[1] < sssma2 and close[2] > sssma2 and sssma2 < SMA_01_INPUT and sssma2 < sssma2[2] and sssma1 < sssma1[2] and sssma5 < sssma5[1] and sssma6 < sssma6[1]
+
+plotshape(SHOW_SMA_SIGNALS ? smasc1 : na, style=shape.labeldown, color=color.red, location=location.abovebar, size=size.tiny, title='SMA Short Label', text='SMA', textcolor=color.new(color.white, 0))
+plotshape(SHOW_SMA_SIGNALS ? smalc1 : na, style=shape.labelup, color=color.lime, location=location.belowbar, size=size.tiny, title='SMA Long Label', text='SMA', textcolor=color.new(color.white, 0))
+
+//plot AGGRESSIVE SMA SIGNALS
+asmalc1 = close > open and close > sssma2 and close[1] > open[1] and close[1] > sssma2 and close[2] < sssma2
+asmasc1 = close < open and close < sssma2 and close[1] < open[1] and close[1] < sssma2 and close[2] > sssma2 
+
+plotshape(SHOW_AGG_SMA_SIGNALS ? asmasc1 : na, style=shape.labeldown, color=color.red, location=location.abovebar, size=size.tiny, title='Aggresive SMA Short Label', text='SMA', textcolor=color.new(color.white, 0))
+plotshape(SHOW_AGG_SMA_SIGNALS ? asmalc1 : na, style=shape.labelup, color=color.lime, location=location.belowbar, size=size.tiny, title='Aggressive SMA Long Label', text='SMA', textcolor=color.new(color.white, 0))
+
+
+
+//Show TRAMA
+
+lengthtrama = input(99,'INPUT'
+  , group='--- TRAMA SETTINGS ---', tooltip=TRAMA_LENGTH_TOOLTIP)
+
+ama = 0.
+hh = math.max(math.sign(ta.change(ta.highest(lengthtrama))), 0)
+ll = math.max(math.sign(ta.change(ta.lowest(lengthtrama)) * -1), 0)
+tc = math.pow(ta.sma(hh or ll ? 1 : 0, lengthtrama), 2)
+ama := nz(ama[1] + tc * (src - ama[1]), src)
+plot(SHOW_TRAMA?ama : na, 'Plot', color.new(color.purple, 0), 2)
+
+if SHOW_TRAMA
+    var labeltrama = label.new(x = bar_index, y = ama, style=label.style_none, textcolor = color.black, text = "TRAMA")
+    label.set_xy(labeltrama, x = bar_index+3, y = ama)
+    label.set_text(labeltrama, text = "TRAMA" + str.tostring(lengthtrama))
+
+
+//NADARAYA WATSON ENVELOPE
+
+length_nwe = input.float(500,'WINDOW SIZE'
+  ,maxval=500, minval=0
+  , group='--- NADARAYA WATSON ENVELOPE ---'
+  , tooltip='Determines the number of recent price observations to be used to fit the Nadaraya-Watson Estimator.')
+
+h_nwe= input.float(8.,'BANDWIDTH'
+  , group='--- NADARAYA WATSON ENVELOPE ---'
+  , tooltip='Bandwidth: Controls the degree of smoothness of the envelopes , with higher values returning smoother results.')
+
+up_col_nwe = input.color(#39ff14,'',inline='col', group='--- NADARAYA WATSON ENVELOPE ---')
+
+dn_col_nwe = input.color(#ff1100,''
+  ,inline='col', group='--- NADARAYA WATSON ENVELOPE ---')
+
+multi_nwe   = input.float(3.,'‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏ MULTI '
+  , group='--- NADARAYA WATSON ENVELOPE ---', inline='col',
+  tooltip='Controls the envelope width.') 
+ 
+//----
+nwe = bar_index
+var k_nwe = 2
+var nwe_upper = array.new_line(0) 
+var nwe_lower = array.new_line(0) 
+
+lset(l,x1,y1,x2,y2,col)=>
+    line.set_xy1(l,x1,y1)
+    line.set_xy2(l,x2,y2)
+    line.set_color(l,col)
+    line.set_width(l,2)
+
+if barstate.isfirst
+    for i = 0 to length_nwe/k_nwe-1
+        array.push(nwe_upper,line.new(na,na,na,na))
+        array.push(nwe_lower,line.new(na,na,na,na))
+//----
+line up_nwe = na
+line dn_nwe = na
+//----
+cross_up_nwe = 0.
+cross_dn_nwe = 0.
+if barstate.islast and SHOW_NWE
+    y_nwe = array.new_float(0)
+    
+    sum_e = 0.
+    for i = 0 to length_nwe-1
+        sum = 0.
+        sumw = 0.
+        
+        for j = 0 to length_nwe-1
+            w = math.exp(-(math.pow(i-j,2)/(h_nwe*h_nwe*2)))
+            sum += src[j]*w
+            sumw += w
+        
+        y2 = sum/sumw
+        sum_e += math.abs(src[i] - y2)
+        array.push(y_nwe,y2)
+
+    mae = sum_e/length_nwe*multi_nwe
+    
+    for i = 1 to length_nwe-1
+        y2 = array.get(y_nwe,i)
+        y1 = array.get(y_nwe,i-1)
+        
+        up_nwe := array.get(nwe_upper,i/k_nwe)
+        dn_nwe := array.get(nwe_lower,i/k_nwe)
+        
+        lset(up_nwe,nwe-i+1,y1 + mae,nwe-i,y2 + mae,up_col_nwe)
+        lset(dn_nwe,nwe-i+1,y1 - mae,nwe-i,y2 - mae,dn_col_nwe)
+        
+        if src[i] > y1 + mae and src[i+1] < y1 + mae
+            label.new(nwe-i,src[i],'▼',color=#00000000,style=label.style_label_down,textcolor=dn_col_nwe,textalign=text.align_center)
+        if src[i] < y1 - mae and src[i+1] > y1 - mae
+            label.new(nwe-i,src[i],'▲',color=#00000000,style=label.style_label_up,textcolor=up_col_nwe,textalign=text.align_center)
+    
+    cross_up_nwe := array.get(y_nwe,0) + mae
+    cross_dn_nwe := array.get(y_nwe,0) - mae
+
+alertcondition(ta.crossover(src,cross_up_nwe),'Down','Down')
+alertcondition(ta.crossunder(src,cross_dn_nwe),'up_nwe','up_nwe')
+
+//----
+var tb = table.new(position.top_right, 2, 3
+  , bgcolor = #f8f532ce)
+
+
+if barstate.isfirst
+    table.cell(tb, 0, 0, 'SRI Indicator Ft. MSB: '
+      , text_size = size.normal
+      , text_color = #cc2f3c)
+    table.cell(tb, 1, 0, 'FREE Distribution Only'
+      , text_size = size.normal
+      , text_color = #cc2f3c)
+
+
+//CME GAPS
+
+CME_PREV_CLOSE= request.security('CME:BTC1!', 'W', close[1])
+CME_PREV_OPEN= request.security('CME:BTC1!', 'W', open)
+
+//CPR Levels
+
+prevcprclose=request.security(syminfo.tickerid,"D",close[1],gaps = barmerge.gaps_off,lookahead = barmerge.lookahead_on)
+prevcprlow=request.security(syminfo.tickerid,"D",low[1],gaps = barmerge.gaps_off,lookahead = barmerge.lookahead_on)
+prevcprhigh=request.security(syminfo.tickerid,"D",high[1],gaps = barmerge.gaps_off,lookahead = barmerge.lookahead_on)
+
+pivotcpr= (prevcprclose +prevcprhigh + prevcprlow)/3
+bottomCPR= (prevcprhigh +prevcprlow)/2
+topCPR= (pivotcpr -bottomCPR) +pivotcpr
+
+
+plot(SHOW_CPR?pivotcpr:na,color=color.black)
+plot(SHOW_CPR?bottomCPR:na,color=color.red)
+plot(SHOW_CPR?topCPR:na,color=color.green)
+
+
+
+
+// RSI SETTINGS
+
+ssr1len = input.int(14, minval=1, title='RSI Length', group='--- RSI SETTINGS ---')
+rsimob = input(70, 'RSI OVERBOUGHT :', group='--- RSI SETTINGS ---')
+rsimos = input(30, 'RSI OVERSOLD :', group='--- RSI SETTINGS ---')
+rsi1 = ta.rsi(src, ssr1len)
+
+RSIover = rsi1 > 85
+RSI85 = rsi1 < 85 and rsi1 > 80
+RSI80 = rsi1 < 80 and rsi1 > 75
+RSI75 = rsi1 < 75 and rsi1 > rsimob
+RSI30 = rsi1 < rsimos and rsi1 > 25
+RSI25 = rsi1 < 25 and rsi1 > 20
+RSI20 = rsi1 < 20 and rsi1 > 15
+RSI15 = rsi1 < 15 and rsi1 > 10
+RSIunder = rsi1 < 10
+
+barcolor(SHOW_RSI_BAR_COLORS ? RSIunder ? #ffffff : RSI15 ? #5142f5 : RSI20 ? #4284f5 : RSI25 ? #42aaf5 : RSI30 ? #42e0f5 : RSI75 ? #f5cb42 : RSI80 ? #f58742 : RSI85 ? #ff5500 : RSIover ? #ffffff : na : na, title='RSI Colors')
+
+
+//SuperIchi
+
+tenkan_len  = input(9,'TENKAN          ',inline='tenkan')
+tenkan_mult = input(2.,'',inline='tenkan')
+
+kijun_len   = input(26,'KIJUN             ',inline='kijun')
+kijun_mult  = input(4.,'',inline='kijun')
+
+spanB_len   = input(52,'SENKOU SPAN B ',inline='span', tooltip = "For Swing Trade : Higher Values (Ex:8-10). \nFor Scalp Trade : Lower Values (Ex:4-6)")
+spanB_mult  = input(6.,'',inline='span')
+
+offset_super      = input(26,'DISPLACEMENT')
+//------------------------------------------------------------------------------
+avg(src,length,mult)=>
+    atr = ta.atr(length)*mult
+    up = hl2 + atr
+    dn = hl2 - atr
+    upper = 0.,lower = 0.
+    upper := src[1] < upper[1] ? math.min(up,upper[1]) : up
+    lower := src[1] > lower[1] ? math.max(dn,lower[1]) : dn
+    
+    os = 0,max = 0.,min = 0.
+    os := src > upper ? 1 : src < lower ? 0 : os[1]
+    spt = os == 1 ? lower : upper
+    max := ta.cross(src,spt) ? math.max(src,max[1]) : os == 1 ? math.max(src,max[1]) : spt
+    min := ta.cross(src,spt) ? math.min(src,min[1]) : os == 0 ? math.min(src,min[1]) : spt
+    math.avg(max,min)
+//------------------------------------------------------------------------------
+tenkan = avg(close,tenkan_len,tenkan_mult)
+kijun = avg(close,kijun_len,kijun_mult)
+
+senkouA = math.avg(kijun,tenkan)
+senkouB = avg(close,spanB_len,spanB_mult)
+//------------------------------------------------------------------------------
+tenkan_css = #2157f3
+kijun_css = #ff5d00
+
+cloud_a = color.new(color.teal,80)
+cloud_b = color.new(color.red,80)
+
+chikou_css = #7b1fa2
+
+plot(SHOW_SUPERICHI?tenkan: na,'Tenkan-Sen',tenkan_css)
+plot(SHOW_SUPERICHI?kijun: na,'Kijun-Sen',kijun_css)
+
+plot(ta.crossover(tenkan,kijun) ? kijun : na,'Crossover',#2157f3,3,plot.style_circles)
+plot(ta.crossunder(tenkan,kijun) ? kijun : na,'Crossunder',#ff5d00,3,plot.style_circles)
+
+A_super = plot(SHOW_SUPERICHI?senkouA:na,'Senkou Span A_super',na,offset=offset_super-1)
+B_super = plot(SHOW_SUPERICHI?senkouB:na,'Senkou Span B_super',na,offset=offset_super-1)
+fill(A_super,B_super,senkouA > senkouB ? cloud_a : cloud_b)
+
+plot(close,'Chikou',chikou_css,offset=-offset_super+1,display=display.none)
+
+
+//Super Trend
+
+atrPeriod = input.int(10, 'ATR Length', group='Super Trend')
+factor = input.int(3, 'Factor', group='Super Trend')
+
+[supertrend, direction] = ta.supertrend(factor, atrPeriod)
+
+bodyMiddle = plot(SHOW_SUPER_TREND ? (open + close) / 2 : na, 'Super Trend Middle', display=display.none)
+upTrend = plot(SHOW_SUPER_TREND ? direction < 0 ? supertrend : na : na, 'Up Trend', color=color.new(color.green, 0), style=plot.style_linebr)
+downTrend = plot(SHOW_SUPER_TREND ? direction < 0 ? na : supertrend : na, 'Down Trend', color=color.new(color.red, 0), style=plot.style_linebr)
+
+fill(bodyMiddle, upTrend, color.new(color.green, 90), fillgaps=false, title='Uptrend Highlight')
+fill(bodyMiddle, downTrend, color.new(color.red, 90), fillgaps=false, title='Downtrend Highlight')
+
+//Bollinger Bands
+
+lengthbb = input.int(20, minval=1, group='Bollinger Bands')
+// src = input(close, title="Source")
+mult = input.float(2.0, minval=0.001, maxval=50, title='StdDev', group='Bollinger Bands')
+basis = ta.sma(src, lengthbb)
+dev = mult * ta.stdev(src, lengthbb)
+upper = basis + dev
+lower = basis - dev
+offset = input.int(0, 'Offset', minval=-500, maxval=500, group='Bollinger Bands')
+plot(SHOW_BOLINGER_BANDS ? basis : na, 'BB Basis', color=color.new(#FF6D00, 0), offset=offset)
+pbb1 = plot(SHOW_BOLINGER_BANDS ? upper : na, 'BB Upper', color=color.new(#2962FF, 0), offset=offset)
+pbb2 = plot(SHOW_BOLINGER_BANDS ? lower : na, 'BB Lower', color=color.new(#2962FF, 0), offset=offset)
+fill(pbb1, pbb2, title='BB Background', color=color.rgb(33, 150, 243, 95))
+
+// Stoch
+
+periodK = input.int(9, title='%K Length', minval=1, group='BB Strategy Stoch')
+smoothK = input.int(3, title='%K Smoothing', minval=1, group='BB Strategy Stoch')
+periodD = input.int(3, title='%D Smoothing', minval=1)
+group = 'BB Strategy Stoch'
+k = ta.sma(ta.stoch(close, high, low, periodK), smoothK)
+d = ta.sma(k, periodD)
+
+
+// DEMA
+
+lengthd = input.int(15, minval=1, title='BB MA Length', group='BB Strategy MA')
+e1 = ta.ema(close, lengthd)
+e2 = ta.ema(e1, lengthd)
+dema = 2 * e1 - e2
+
+lengthdc = input.int(20, minval=1, title='BB MA2 Length', group='BB Strategy MA')
+lowerdc = ta.lowest(lengthdc)
+upperdc = ta.highest(lengthdc)
+basisdc = math.avg(upperdc, lowerdc)
+
+
+//BB Strategy
+
+rsibb = ta.rsi(close, 2)
+rsibbos = input.int(9, 'BB RSI OS Level', group='BB RSI')
+rsibbob = input.int(91, 'BB RSI OB Level', group='BB RSI')
+
+shortbb = open > close and close < dema and (high > upper or high[1] > upper) and k[1] > 65 and (rsibb > rsibbob or rsibb[1] > rsibbob or rsibb[2] > rsibbob or rsibb[3] > rsibbob)
+longbb = open < close and close > dema and (low < lower or low[1] < lower) and k[1] < 35 and (rsibb < rsibbos or rsibb[1] < rsibbos or rsibb[2] < rsibbos or rsibb[3] < rsibbos)
+
+
+bool SHOW_BB = na
+bool SHOW_AGG_BB = na
+
+if SHOW_BB_STRATEGY =='NORMAL'
+    SHOW_BB := true
+    SHOW_AGG_BB := false
+else if SHOW_BB_STRATEGY == 'AGGRESSIVE'
+    SHOW_AGG_BB := true
+    SHOW_BB:= false
+
+
+plotshape(SHOW_BB ? shortbb : na, style=shape.labeldown, color=sorange0, location=location.abovebar, size=size.tiny, title='Short Label', text='SS', textcolor=color.new(color.white, 0))
+plotshape(SHOW_BB ? longbb : na, style=shape.labelup, color=sblue0, location=location.belowbar, size=size.tiny, title='Long Label', text='BB', textcolor=color.new(color.white, 0))
+
+
+//AGGRESIVE BB STRATEGY
+shdc = close < open and close < upper and (high > upper or high[1] > upper) and (high >= upperdc or high[1] >= upperdc) and ta.crossunder(rsibb, rsibbob)
+lodc = close > open and close > upper and (low < lower or low[1] < lower) and (low <= lowerdc or low[1] <= lowerdc) and ta.crossover(rsibb, rsibbos)
+
+plotshape(SHOW_AGG_BB ? shdc : na, style=shape.labeldown, color=color.new(color.red, 0), location=location.abovebar, size=size.tiny, title='Short Label', text='S', textcolor=color.new(color.white, 0))
+plotshape(SHOW_AGG_BB ? lodc : na, style=shape.labelup, color=color.new(color.green, 0), location=location.belowbar, size=size.tiny, title='Long Label', text='B', textcolor=color.new(color.white, 0))
+
+
+//pivot
+
+AUTO = "Auto"
+DAILY = "Daily"
+WEEKLY = "Weekly"
+MONTHLY = "Monthly"
+QUARTERLY = "Quarterly"
+YEARLY = "Yearly"
+BIYEARLY = "Biyearly"
+TRIYEARLY = "Triyearly"
+QUINQUENNIALLY = "Quinquennially"
+DECENNIALLY = "Decennially"
+
+TRADITIONAL = "Traditional"
+FIBONACCI = "Fibonacci"
+WOODIE = "Woodie"
+CLASSIC = "Classic"
+DEMARK = "DM"
+CAMARILLA = "Camarilla"
+
+kind = input.string(title="PIVOT TYPES", defval="Traditional", options=[TRADITIONAL, FIBONACCI, WOODIE, CLASSIC, DEMARK, CAMARILLA], group='--- PIVOT SETTINGS ---')
+pivot_time_frame = input.string(title="PIVOT TIMEFRAME", defval=WEEKLY, options=[AUTO, DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY, BIYEARLY, TRIYEARLY, QUINQUENNIALLY, DECENNIALLY], group='--- PIVOT SETTINGS ---')
+look_back = input.int(title="NO OF PIVOTS LOOKBACK", defval=3, minval=1, maxval=5000, group='--- PIVOT SETTINGS ---')
+is_daily_based = input.bool(title="USE DAILY BASED VALUES", defval=true, tooltip="When this option is unchecked, Pivot Points will use intraday data while calculating on intraday charts. If Extended Hours are displayed on the chart, they will be taken into account during the pivot level calculation. If intraday OHLC values are different from daily-based values (normal for stocks), the pivot levels will also differ.")
+show_labels = input.bool(title="SHOW LABELS", defval=true, group='--- PIVOT SETTINGS ---')
+show_prices = input.bool(title="SHOW PRICES", defval=true, group='--- PIVOT SETTINGS ---')
+position_labels = input.string("Left", "LABEL POSITION", options=["Left", "Right"], group='--- PIVOT SETTINGS ---')
+line_width = input.int(title="LINE WIDTH", defval=1, minval=1, maxval=100, group='--- PIVOT SETTINGS ---')
+
+var DEF_COLOR = #FB8C00
+var arr_time = array.new_int()
+var p = array.new_float()
+p_color = input.color(DEF_COLOR, "P‏  ‏  ‏", inline="P", group='--- PIVOT SETTINGS ---')
+p_show = input.bool(true, "", inline="P", group='--- PIVOT SETTINGS ---')
+var r1 = array.new_float()
+var s1 = array.new_float()
+s1_color = input.color(DEF_COLOR, "S1", inline="S1/R1" , group='--- PIVOT SETTINGS ---')
+s1_show = input.bool(true, "", inline="S1/R1", group='--- PIVOT SETTINGS ---')
+r1_color = input.color(DEF_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R1", inline="S1/R1", group='--- PIVOT SETTINGS ---')
+r1_show = input.bool(true, "", inline="S1/R1", group='--- PIVOT SETTINGS ---')
+var r2 = array.new_float()
+var s2 = array.new_float()
+s2_color = input.color(DEF_COLOR, "S2", inline="S2/R2", group='--- PIVOT SETTINGS ---')
+s2_show = input.bool(false, "", inline="S2/R2", group='--- PIVOT SETTINGS ---')
+r2_color = input.color(DEF_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R2", inline="S2/R2", group='--- PIVOT SETTINGS ---')
+r2_show = input.bool(false, "", inline="S2/R2", group='--- PIVOT SETTINGS ---')
+var r3 = array.new_float()
+var s3 = array.new_float()
+s3_color = input.color(DEF_COLOR, "S3", inline="S3/R3", group='--- PIVOT SETTINGS ---')
+s3_show = input.bool(false, "", inline="S3/R3", group='--- PIVOT SETTINGS ---')
+r3_color = input.color(DEF_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R3", inline="S3/R3", group='--- PIVOT SETTINGS ---')
+r3_show = input.bool(false, "", inline="S3/R3", group='--- PIVOT SETTINGS ---')
+var r4 = array.new_float()
+var s4 = array.new_float()
+s4_color = input.color(DEF_COLOR, "S4", inline="S4/R4", group='--- PIVOT SETTINGS ---')
+s4_show = input.bool(false, "", inline="S4/R4", group='--- PIVOT SETTINGS ---')
+r4_color = input.color(DEF_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R4", inline="S4/R4", group='--- PIVOT SETTINGS ---')
+r4_show = input.bool(false, "", inline="S4/R4", group='--- PIVOT SETTINGS ---')
+var r5 = array.new_float()
+var s5 = array.new_float()
+s5_color = input.color(DEF_COLOR, "S5", inline="S5/R5", group='--- PIVOT SETTINGS ---')
+s5_show = input.bool(false, "", inline="S5/R5", group='--- PIVOT SETTINGS ---')
+r5_color = input.color(DEF_COLOR, "‏  ‏  ‏  ‏  ‏  ‏  ‏  ‏R5", inline="S5/R5", group='--- PIVOT SETTINGS ---')
+r5_show = input.bool(false, "", inline="S5/R5", group='--- PIVOT SETTINGS ---')
+pivotX_open = float(na)
+pivotX_open := nz(pivotX_open[1], open)
+pivotX_high = float(na)
+pivotX_high := nz(pivotX_high[1], high)
+pivotX_low = float(na)
+pivotX_low := nz(pivotX_low[1], low)
+pivotX_prev_open = float(na)
+pivotX_prev_open := nz(pivotX_prev_open[1])
+pivotX_prev_high = float(na)
+pivotX_prev_high := nz(pivotX_prev_high[1])
+pivotX_prev_low = float(na)
+pivotX_prev_low := nz(pivotX_prev_low[1])
+pivotX_prev_close = float(na)
+pivotX_prev_close := nz(pivotX_prev_close[1])
+
+get_pivot_resolution() =>
+    resolution = "M"
+    if pivot_time_frame == AUTO
+        if timeframe.isintraday
+            resolution := timeframe.multiplier <= 15 ? "D" : "W"
+        else if timeframe.isweekly or timeframe.ismonthly
+            resolution := "12M"
+    else if pivot_time_frame == DAILY
+        resolution := "D"
+    else if pivot_time_frame == WEEKLY
+        resolution := "W"
+    else if pivot_time_frame == MONTHLY
+        resolution := "M"
+    else if pivot_time_frame == QUARTERLY
+        resolution := "3M"
+    else if pivot_time_frame == YEARLY or pivot_time_frame == BIYEARLY or pivot_time_frame == TRIYEARLY or pivot_time_frame == QUINQUENNIALLY or pivot_time_frame == DECENNIALLY
+        resolution := "12M"
+    resolution
+
+var lines = array.new_line()
+var labels = array.new_label()
+
+draw_line(i, pivot, col) =>
+    if array.size(arr_time) > 1
+        array.push(lines, line.new(array.get(arr_time, i), array.get(pivot, i), array.get(arr_time, i + 1), array.get(pivot, i), color=col, xloc=xloc.bar_time, width=line_width))
+
+draw_label(i, y, txt, txt_color) =>
+    if (show_labels or show_prices) and not na(y)
+        display_text = (show_labels ? txt : "") + (show_prices ? str.format(" ({0})", math.round_to_mintick(y)) : "")
+        label_style = position_labels == "Left" ? label.style_label_right : label.style_label_left
+        x = position_labels == "Left" ? array.get(arr_time, i) : array.get(arr_time, i + 1)
+        array.push(labels, label.new(x = x, y=y, text=display_text, textcolor=txt_color, style=label_style, color=#00000000, xloc=xloc.bar_time))
+
+traditional() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Median + 1 * (pivotX_prev_high - pivotX_prev_low))
+    array.push(s2, pivotX_Median - 1 * (pivotX_prev_high - pivotX_prev_low))
+    array.push(r3, pivotX_Median * 2 + (pivotX_prev_high - 2 * pivotX_prev_low))
+    array.push(s3, pivotX_Median * 2 - (2 * pivotX_prev_high - pivotX_prev_low))
+    array.push(r4, pivotX_Median * 3 + (pivotX_prev_high - 3 * pivotX_prev_low))
+    array.push(s4, pivotX_Median * 3 - (3 * pivotX_prev_high - pivotX_prev_low))
+    array.push(r5, pivotX_Median * 4 + (pivotX_prev_high - 4 * pivotX_prev_low))
+    array.push(s5, pivotX_Median * 4 - (4 * pivotX_prev_high - pivotX_prev_low))
+
+fibonacci() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median + 0.382 * pivot_range)
+    array.push(s1, pivotX_Median - 0.382 * pivot_range)
+    array.push(r2, pivotX_Median + 0.618 * pivot_range)
+    array.push(s2, pivotX_Median - 0.618 * pivot_range)
+    array.push(r3, pivotX_Median + 1 * pivot_range)
+    array.push(s3, pivotX_Median - 1 * pivot_range)
+
+woodie() =>
+    pivotX_Woodie_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_open * 2)/4
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Woodie_Median)
+    array.push(r1, pivotX_Woodie_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Woodie_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Woodie_Median + 1 * pivot_range)
+    array.push(s2, pivotX_Woodie_Median - 1 * pivot_range)
+
+    pivot_point_r3 = pivotX_prev_high + 2 * (pivotX_Woodie_Median - pivotX_prev_low)
+    pivot_point_s3 = pivotX_prev_low - 2 * (pivotX_prev_high - pivotX_Woodie_Median)
+    array.push(r3, pivot_point_r3)
+    array.push(s3, pivot_point_s3)
+    array.push(r4, pivot_point_r3 + pivot_range)
+    array.push(s4, pivot_point_s3 - pivot_range)
+
+classic() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close)/3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_Median * 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Median * 2 - pivotX_prev_high)
+    array.push(r2, pivotX_Median + 1 * pivot_range)
+    array.push(s2, pivotX_Median - 1 * pivot_range)
+    array.push(r3, pivotX_Median + 2 * pivot_range)
+    array.push(s3, pivotX_Median - 2 * pivot_range)
+    array.push(r4, pivotX_Median + 3 * pivot_range)
+    array.push(s4, pivotX_Median - 3 * pivot_range)
+
+demark() =>
+    pivotX_Demark_X = pivotX_prev_high + pivotX_prev_low * 2 + pivotX_prev_close
+    if pivotX_prev_close == pivotX_prev_open
+        pivotX_Demark_X := pivotX_prev_high + pivotX_prev_low + pivotX_prev_close * 2
+    if pivotX_prev_close > pivotX_prev_open
+        pivotX_Demark_X := pivotX_prev_high * 2 + pivotX_prev_low + pivotX_prev_close
+    array.push(p, pivotX_Demark_X / 4)
+    array.push(r1, pivotX_Demark_X / 2 - pivotX_prev_low)
+    array.push(s1, pivotX_Demark_X / 2 - pivotX_prev_high)
+
+camarilla() =>
+    pivotX_Median = (pivotX_prev_high + pivotX_prev_low + pivotX_prev_close) / 3
+    pivot_range = pivotX_prev_high - pivotX_prev_low
+    array.push(p, pivotX_Median)
+    array.push(r1, pivotX_prev_close + pivot_range * 1.1 / 12.0)
+    array.push(s1, pivotX_prev_close - pivot_range * 1.1 / 12.0)
+    array.push(r2, pivotX_prev_close + pivot_range * 1.1 / 6.0)
+    array.push(s2, pivotX_prev_close - pivot_range * 1.1 / 6.0)
+    array.push(r3, pivotX_prev_close + pivot_range * 1.1 / 4.0)
+    array.push(s3, pivotX_prev_close - pivot_range * 1.1 / 4.0)
+    array.push(r4, pivotX_prev_close + pivot_range * 1.1 / 2.0)
+    array.push(s4, pivotX_prev_close - pivot_range * 1.1 / 2.0)
+    r5_val = pivotX_prev_high / pivotX_prev_low * pivotX_prev_close
+	array.push(r5, r5_val)
+	array.push(s5, 2 * pivotX_prev_close - r5_val)
+
+calc_pivot() =>
+    if kind == TRADITIONAL
+        traditional()
+    else if kind == FIBONACCI
+        fibonacci()
+    else if kind == WOODIE
+        woodie()
+    else if kind == CLASSIC
+        classic()
+    else if kind == DEMARK
+        demark()
+    else if kind == CAMARILLA
+        camarilla()
+
+resolution = get_pivot_resolution()
+
+SIMPLE_DIVISOR = -1
+custom_years_divisor = switch pivot_time_frame
+	BIYEARLY => 2
+	TRIYEARLY => 3
+	QUINQUENNIALLY => 5
+	DECENNIALLY => 10
+	=> SIMPLE_DIVISOR
+
+calc_high(prev, curr) =>
+    if na(prev) or na(curr)
+        nz(prev, nz(curr, na))
+    else
+        math.max(prev, curr)
+    
+calc_low(prev, curr) =>
+    if not na(prev) and not na(curr)
+        math.min(prev, curr)
+    else
+        nz(prev, nz(curr, na))
+
+calc_OHLC_for_pivot(custom_years_divisor) =>
+    if custom_years_divisor == SIMPLE_DIVISOR 
+        [open, high, low, close, open[1], high[1], low[1], close[1], time[1], time_close]
+    else
+        var prev_sec_open = float(na)
+        var prev_sec_high = float(na)
+        var prev_sec_low = float(na)
+        var prev_sec_close = float(na)
+        var prev_sec_time = int(na)
+        var curr_sec_open = float(na)
+        var curr_sec_high = float(na)
+        var curr_sec_low = float(na)
+        var curr_sec_close = float(na)
+        if year(time_close) % custom_years_divisor == 0
+        	curr_sec_open := open
+			curr_sec_high := high
+			curr_sec_low := low
+			curr_sec_close := close
+            prev_sec_high := high[1]
+            prev_sec_low := low[1]
+            prev_sec_close := close[1]
+            prev_sec_time := time[1]
+            for i = 2 to custom_years_divisor
+                prev_sec_open :=  nz(open[i], prev_sec_open)
+                prev_sec_high := calc_high(prev_sec_high, high[i])
+                prev_sec_low := calc_low(prev_sec_low, low[i])
+                prev_sec_time := nz(time[i], prev_sec_time)
+        [curr_sec_open, curr_sec_high, curr_sec_low, curr_sec_close, prev_sec_open, prev_sec_high, prev_sec_low, prev_sec_close, prev_sec_time, time_close]
+
+[sec_open, sec_high, sec_low, sec_close, prev_sec_open, prev_sec_high, prev_sec_low, prev_sec_close, prev_sec_time, sec_time] = request.security(syminfo.tickerid, resolution, calc_OHLC_for_pivot(custom_years_divisor), lookahead = barmerge.lookahead_on)
+sec_open_gaps_on = request.security(syminfo.tickerid, resolution, open, gaps = barmerge.gaps_on, lookahead = barmerge.lookahead_on)
+
+is_change_years = custom_years_divisor > 0 and ta.change(time(resolution)) and year(time_close) % custom_years_divisor == 0
+
+var is_change = false
+var uses_current_bar = timeframe.isintraday and kind == WOODIE
+var change_time = int(na)
+is_time_change = (ta.change(time(resolution)) and custom_years_divisor == SIMPLE_DIVISOR) or is_change_years
+if is_time_change
+    change_time := time
+
+var start_time = time
+var was_last_premarket = false
+var start_calculate_in_premarket = false
+
+is_last_premarket = barstate.islast and session.ispremarket and time_close > sec_time and not was_last_premarket
+
+if is_last_premarket
+    was_last_premarket := true
+    start_calculate_in_premarket := true
+if session.ismarket
+    was_last_premarket := false
+    
+without_time_change = barstate.islast and array.size(arr_time) == 0
+is_can_calc_pivot = (not uses_current_bar and is_time_change and session.ismarket) or (ta.change(sec_open) and not start_calculate_in_premarket) or is_last_premarket or (uses_current_bar and not na(sec_open_gaps_on)) or without_time_change
+enough_bars_for_calculate = prev_sec_time >= start_time or is_daily_based
+
+if is_can_calc_pivot and enough_bars_for_calculate 
+    if array.size(arr_time) == 0 and is_daily_based
+        pivotX_prev_open := prev_sec_open[1]
+        pivotX_prev_high := prev_sec_high[1]
+        pivotX_prev_low := prev_sec_low[1]
+        pivotX_prev_close := prev_sec_close[1]
+        pivotX_open := sec_open[1]
+        pivotX_high := sec_high[1]
+        pivotX_low := sec_low[1]
+        array.push(arr_time, start_time)
+        calc_pivot()
+    
+    if is_daily_based
+    	if is_last_premarket
+            pivotX_prev_open := sec_open
+            pivotX_prev_high := sec_high
+            pivotX_prev_low := sec_low
+            pivotX_prev_close := sec_close
+            pivotX_open := open
+            pivotX_high := high
+            pivotX_low := low
+        else
+			pivotX_prev_open := prev_sec_open
+			pivotX_prev_high := prev_sec_high
+			pivotX_prev_low := prev_sec_low
+			pivotX_prev_close := prev_sec_close
+			pivotX_open := sec_open
+			pivotX_high := sec_high
+			pivotX_low := sec_low
+    else
+        pivotX_prev_high := pivotX_high
+        pivotX_prev_low := pivotX_low
+        pivotX_prev_open := pivotX_open
+        pivotX_prev_close := close[1]
+        pivotX_open := open
+        pivotX_high := high
+        pivotX_low := low
+
+    if barstate.islast and not is_change and array.size(arr_time) > 0 and not without_time_change
+        array.set(arr_time, array.size(arr_time) - 1, change_time)
+    else if without_time_change
+        array.push(arr_time, start_time)
+    else
+        array.push(arr_time, nz(change_time, time))
+
+    calc_pivot()
+
+    if array.size(arr_time) > look_back
+        if array.size(arr_time) > 0
+            array.shift(arr_time)
+        if array.size(p) > 0 and p_show
+            array.shift(p)
+        if array.size(r1) > 0 and r1_show
+            array.shift(r1)
+        if array.size(s1) > 0 and s1_show
+            array.shift(s1)
+        if array.size(r2) > 0 and r2_show
+            array.shift(r2)
+        if array.size(s2) > 0 and s2_show
+            array.shift(s2)
+        if array.size(r3) > 0 and r3_show
+            array.shift(r3)
+        if array.size(s3) > 0 and s3_show
+            array.shift(s3)
+        if array.size(r4) > 0 and r4_show
+            array.shift(r4)
+        if array.size(s4) > 0 and s4_show
+            array.shift(s4)
+        if array.size(r5) > 0 and r5_show
+            array.shift(r5)
+        if array.size(s5) > 0 and s5_show
+            array.shift(s5)
+    is_change := true
+else if not is_daily_based
+    pivotX_high := math.max(pivotX_high, high)
+    pivotX_low := math.min(pivotX_low, low)
+
+if barstate.islast and not is_daily_based and array.size(arr_time) == 0 
+    runtime.error("Not enough intraday data to calculate Pivot Points. Lower the Pivots Timeframe or turn on the 'Use Daily-based Values' option in the indicator settings.")
+
+if barstate.islast and array.size(arr_time) > 0 and is_change
+    is_change := false
+    if custom_years_divisor > 0
+        last_pivot_time = array.get(arr_time, array.size(arr_time) - 1)
+        pivot_timeframe = str.tostring(12 * custom_years_divisor) + "M"
+        estimate_pivot_time = last_pivot_time + timeframe.in_seconds(pivot_timeframe) * 1000
+        array.push(arr_time, estimate_pivot_time)
+    else
+        array.push(arr_time, time_close(resolution))
+    
+    if SHOW_PIVOTS
+        for i = 0 to array.size(lines) - 1
+            if array.size(lines) > 0
+                line.delete(array.shift(lines))
+            if array.size(labels) > 0
+                label.delete(array.shift(labels))
+
+        for i = 0 to array.size(arr_time) - 2
+            if array.size(p) > 0 and p_show
+                draw_line(i, p, p_color)
+                draw_label(i, array.get(p, i), "P", p_color)
+            if array.size(r1) > 0 and r1_show
+                draw_line(i, r1, r1_color)
+                draw_label(i, array.get(r1, i), "R1", r1_color)
+            if array.size(s1) > 0 and s1_show
+                draw_line(i, s1, s1_color)
+                draw_label(i, array.get(s1, i), "S1", s1_color)
+            if array.size(r2) > 0 and r2_show
+                draw_line(i, r2, r2_color)
+                draw_label(i, array.get(r2, i), "R2", r2_color)
+            if array.size(s2) > 0 and s2_show
+                draw_line(i, s2, s2_color)
+                draw_label(i, array.get(s2, i), "S2", s2_color)
+            if array.size(r3) > 0 and r3_show
+                draw_line(i, r3, r3_color)
+                draw_label(i, array.get(r3, i), "R3", r3_color)
+            if array.size(s3) > 0 and s3_show
+                draw_line(i, s3, s3_color)
+                draw_label(i, array.get(s3, i), "S3", s3_color)
+            if array.size(r4) > 0 and r4_show
+                draw_line(i, r4, r4_color)
+                draw_label(i, array.get(r4, i), "R4", r4_color)
+            if array.size(s4) > 0 and s4_show
+                draw_line(i, s4, s4_color)
+                draw_label(i, array.get(s4, i), "S4", s4_color)
+            if array.size(r5) > 0 and r5_show
+                draw_line(i, r5, r5_color)
+                draw_label(i, array.get(r5, i), "R5", r5_color)
+            if array.size(s5) > 0 and s5_show
+                draw_line(i, s5, s5_color)
+                draw_label(i, array.get(s5, i), "S5", s5_color)
+
+
